@@ -9,9 +9,10 @@ from core.image_generator import (generate_full_image, select_quadrant, flip_ima
 from utils.binary_utils import binary_to_decimal, decimal_to_binary
 
 class LambdaControl(QWidget):
-    def __init__(self, parent, initial_value, initial_z):
+    def __init__(self, parent, initial_value, initial_z, index):
         super().__init__(parent)
         self.parent = parent
+        self.index = index
         self.decimal_value = initial_value
         self.z_value = initial_z
         self.quadrant = 0
@@ -79,7 +80,7 @@ class LambdaControl(QWidget):
         self.decimal_value = value
         self.binary_input.setText(decimal_to_binary(value, self.parent.binary_digits))
         self.decimal_input.setText(str(value))
-        self.parent.update_visualization()
+        self.parent.update_visualization(self.index)
 
     def on_binary_input_change(self, text):
         binary = ''.join(c for c in text if c in '01')
@@ -87,7 +88,7 @@ class LambdaControl(QWidget):
         self.decimal_value = binary_to_decimal(binary)
         self.value_slider.setValue(self.decimal_value)
         self.decimal_input.setText(str(self.decimal_value))
-        self.parent.update_visualization()
+        self.parent.update_visualization(self.index)
 
     def on_decimal_input_change(self, text):
         try:
@@ -96,13 +97,13 @@ class LambdaControl(QWidget):
             self.decimal_value = max(0, min(value, max_value))
             self.value_slider.setValue(self.decimal_value)
             self.binary_input.setText(decimal_to_binary(self.decimal_value, self.parent.binary_digits))
-            self.parent.update_visualization()
+            self.parent.update_visualization(self.index)
         except ValueError:
             pass
 
     def on_z_change(self, value):
         self.z_value = value
-        self.parent.update_visualization()
+        self.parent.update_visualization(self.index)
 
     def on_quadrant_change(self, index):
         self.quadrant = index
@@ -130,12 +131,16 @@ class MainWindow(QMainWindow):
         self.binary_digits = 11
         self.lambda_controls = []
         self.combination_ops = ['xor', 'xor', 'or']
-        self.update_combined = False
+        self.update_combined = True  # Start with combined updates enabled
+        self.source_images = [None] * 4  # To store the full images
 
         self.init_ui()
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.update_visualization)
         self.update_timer.start(100)  # Update every 100ms
+
+        # Generate initial images
+        self.update_all_images()
 
     def init_ui(self):
         central_widget = QWidget()
@@ -155,7 +160,7 @@ class MainWindow(QMainWindow):
         # Lambda controls
         lambda_layout = QHBoxLayout()
         for i, initial_value in enumerate([1434, 307, 1579, 742]):
-            control = LambdaControl(self, initial_value, 128)
+            control = LambdaControl(self, initial_value, 128, i)
             lambda_layout.addWidget(control)
             self.lambda_controls.append(control)
         main_layout.addLayout(lambda_layout)
@@ -184,20 +189,31 @@ class MainWindow(QMainWindow):
         for label in self.intermediate_labels + [self.final_label]:
             combined_layout.addWidget(label)
         main_layout.addLayout(combined_layout)
+        self.update_combined_check.setChecked(True)
 
-    def update_visualization(self):
-        for control in self.lambda_controls:
-            image = generate_full_image(decimal_to_binary(control.decimal_value, self.binary_digits), control.z_value)
-            control.update_image(image)
+    def update_visualization(self, index=None):
+        if index is not None:
+            # Update only the changed lambda control
+            control = self.lambda_controls[index]
+            self.source_images[index] = generate_full_image(
+                decimal_to_binary(control.decimal_value, self.binary_digits),
+                control.z_value
+            )
+            control.update_image(self.source_images[index])
 
         if self.update_combined:
             self.update_combined_images()
 
     def update_combined_images(self):
         images = []
-        for control in self.lambda_controls:
-            image = generate_full_image(decimal_to_binary(control.decimal_value, self.binary_digits), control.z_value)
-            image = select_quadrant(image, control.quadrant)
+        for i, control in enumerate(self.lambda_controls):
+            if self.source_images[i] is None:
+                self.source_images[i] = generate_full_image(
+                    decimal_to_binary(control.decimal_value, self.binary_digits),
+                    control.z_value
+                )
+
+            image = select_quadrant(self.source_images[i], control.quadrant)
             if control.flip:
                 image = flip_image(image)
             image = rotate_image(image, control.rotation)
@@ -215,14 +231,23 @@ class MainWindow(QMainWindow):
             else:
                 self.final_label.setPixmap(pixmap.scaled(128, 128, Qt.AspectRatioMode.KeepAspectRatio))
 
+    def update_all_images(self):
+        for i, control in enumerate(self.lambda_controls):
+            self.source_images[i] = generate_full_image(
+                decimal_to_binary(control.decimal_value, self.binary_digits),
+                control.z_value
+            )
+            control.update_image(self.source_images[i])
+        self.update_combined_images()
+
     def on_digits_change(self, value):
         self.binary_digits = value
         for control in self.lambda_controls:
-            control.value_slider.setRange(0, 2**self.binary_digits - 1)
-            if control.decimal_value >= 2**self.binary_digits:
-                control.decimal_value = 2**self.binary_digits - 1
+            control.value_slider.setRange(0, 2 ** self.binary_digits - 1)
+            if control.decimal_value >= 2 ** self.binary_digits:
+                control.decimal_value = 2 ** self.binary_digits - 1
                 control.value_slider.setValue(control.decimal_value)
-        self.update_visualization()
+        self.update_all_images()
 
     def on_op_change(self, index, operation):
         self.combination_ops[index] = operation
