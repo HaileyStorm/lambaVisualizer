@@ -170,6 +170,7 @@ class MainWindow(QMainWindow):
         # Combination controls
         combination_layout = QVBoxLayout()
         self.update_combined_check = QCheckBox("Update combined images")
+        self.update_combined_check.setChecked(True)
         self.update_combined_check.stateChanged.connect(self.on_update_combined_change)
         combination_layout.addWidget(self.update_combined_check)
 
@@ -191,7 +192,6 @@ class MainWindow(QMainWindow):
         for label in self.intermediate_labels + [self.final_label]:
             combined_layout.addWidget(label)
         main_layout.addLayout(combined_layout)
-        self.update_combined_check.setChecked(True)
 
     def update_visualization(self, index=None):
         if index is not None:
@@ -203,7 +203,7 @@ class MainWindow(QMainWindow):
             control.update_image(self.source_images[index])
             self.combined_images_dirty = True
 
-        if self.update_combined and self.combined_images_dirty:
+        if self.update_combined:
             self.update_combined_images()
             self.combined_images_dirty = False
 
@@ -259,7 +259,7 @@ class MainWindow(QMainWindow):
             self.update_combined_images()
 
     def on_update_combined_change(self, state):
-        self.update_combined = state == Qt.CheckState.Checked
+        self.update_combined = state > 0
         if self.update_combined:
             self.combined_images_dirty = True
             self.update_visualization()
