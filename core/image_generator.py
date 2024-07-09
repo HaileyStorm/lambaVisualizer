@@ -4,14 +4,40 @@ from core.blc_interpreter import interpret_blc
 
 def generate_full_image(binary_value, z_value):
     width, height = 256, 256
-    image = np.zeros((height, width, 3), dtype=np.uint8)
+    x, y = np.meshgrid(np.arange(width), np.arange(height))
 
-    for y in range(height):
-        for x in range(width):
-            result = interpret_blc(binary_value, x, y, z_value)
-            image[y, x] = [result, (x + result) & 255, (y + result) & 255]
+    result = interpret_blc_vectorized(binary_value, x, y, z_value)
+
+    image = np.stack([
+        result,
+        (x + result) & 255,
+        (y + result) & 255
+    ], axis=-1).astype(np.uint8)
 
     return image
+
+
+def interpret_blc_vectorized(code, x, y, z):
+    tokens = [code[i:i + 2] for i in range(0, len(code), 2)]
+    result = np.zeros_like(x)
+
+    for token in tokens:
+        if token == '0':
+            result = (result + x) & 255
+        elif token == '1':
+            result = (result + y) & 255
+        elif token == '00':
+            result = (result + z) & 255
+        elif token == '01':
+            result = (result * 2) & 255
+        elif token == '10':
+            pass  # Identity function
+        elif token == '11':
+            result = (result ^ (x * y)) & 255
+        else:
+            result = (result ^ z) & 255
+
+    return result
 
 
 def select_quadrant(full_image, quadrant):

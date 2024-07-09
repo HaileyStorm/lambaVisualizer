@@ -107,14 +107,17 @@ class LambdaControl(QWidget):
 
     def on_quadrant_change(self, index):
         self.quadrant = index
+        self.parent.combined_images_dirty = True
         self.parent.update_visualization()
 
     def on_flip_change(self, state):
         self.flip = state == Qt.CheckState.Checked
+        self.parent.combined_images_dirty = True
         self.parent.update_visualization()
 
     def on_rotation_change(self, index):
         self.rotation = index * 90
+        self.parent.combined_images_dirty = True
         self.parent.update_visualization()
 
     def update_image(self, image):
@@ -133,11 +136,13 @@ class MainWindow(QMainWindow):
         self.combination_ops = ['xor', 'xor', 'or']
         self.update_combined = True  # Start with combined updates enabled
         self.source_images = [None] * 4  # To store the full images
+        self.source_images = [None] * 4
+        self.combined_images_dirty = True
 
         self.init_ui()
-        self.update_timer = QTimer(self)
-        self.update_timer.timeout.connect(self.update_visualization)
-        self.update_timer.start(100)  # Update every 100ms
+        #self.update_timer = QTimer(self)
+        #self.update_timer.timeout.connect(self.update_visualization)
+        #self.update_timer.start(250)  # Update every 100ms
 
         # Generate initial images
         self.update_all_images()
@@ -193,16 +198,17 @@ class MainWindow(QMainWindow):
 
     def update_visualization(self, index=None):
         if index is not None:
-            # Update only the changed lambda control
             control = self.lambda_controls[index]
             self.source_images[index] = generate_full_image(
                 decimal_to_binary(control.decimal_value, self.binary_digits),
                 control.z_value
             )
             control.update_image(self.source_images[index])
+            self.combined_images_dirty = True
 
-        if self.update_combined:
+        if self.update_combined and self.combined_images_dirty:
             self.update_combined_images()
+            self.combined_images_dirty = False
 
     def update_combined_images(self):
         images = []
@@ -223,13 +229,14 @@ class MainWindow(QMainWindow):
         intermediate2 = combine_images(images[2:], [self.combination_ops[1]])
         final = combine_images([intermediate1, intermediate2], [self.combination_ops[2]])
 
-        for i, img in enumerate([intermediate1, intermediate2, final]):
-            qimage = QImage(img.data, img.shape[1], img.shape[0], QImage.Format.Format_RGB888)
-            pixmap = QPixmap.fromImage(qimage)
-            if i < 2:
-                self.intermediate_labels[i].setPixmap(pixmap.scaled(128, 128, Qt.AspectRatioMode.KeepAspectRatio))
-            else:
-                self.final_label.setPixmap(pixmap.scaled(128, 128, Qt.AspectRatioMode.KeepAspectRatio))
+        self.update_image_label(self.intermediate_labels[0], intermediate1)
+        self.update_image_label(self.intermediate_labels[1], intermediate2)
+        self.update_image_label(self.final_label, final)
+
+    def update_image_label(self, label, image):
+        qimage = QImage(image.data, image.shape[1], image.shape[0], QImage.Format.Format_RGB888)
+        pixmap = QPixmap.fromImage(qimage)
+        label.setPixmap(pixmap.scaled(128, 128, Qt.AspectRatioMode.KeepAspectRatio))
 
     def update_all_images(self):
         for i, control in enumerate(self.lambda_controls):
@@ -257,4 +264,5 @@ class MainWindow(QMainWindow):
     def on_update_combined_change(self, state):
         self.update_combined = state == Qt.CheckState.Checked
         if self.update_combined:
-            self.update_combined_images()
+            self.combined_images_dirty = True
+            self.update_visualization()
