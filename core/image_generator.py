@@ -2,8 +2,8 @@ import numpy as np
 from core.blc_interpreter import interpret_blc
 
 
-def generate_quadrant_image(binary_value, z_value):
-    width, height = 128, 128
+def generate_full_image(binary_value, z_value):
+    width, height = 256, 256
     image = np.zeros((height, width, 3), dtype=np.uint8)
 
     for y in range(height):
@@ -27,8 +27,8 @@ def select_quadrant(full_image, quadrant):
         return full_image[half_h:, half_w:]
 
 
-def flip_image(image, axis):
-    return np.flip(image, axis=axis)
+def flip_image(image):
+    return np.flip(image, axis=1)  # Flip across y-axis
 
 
 def rotate_image(image, rotation):
@@ -42,5 +42,6 @@ def combine_images(images, operations):
             result = np.bitwise_xor(result, images[i + 1])
         elif op == 'or':
             result = np.bitwise_or(result, images[i + 1])
-        # Add more operations as needed
+        elif op == 'and':
+            result = np.bitwise_and(result, images[i + 1])
     return result

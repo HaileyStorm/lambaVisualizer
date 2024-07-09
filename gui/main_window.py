@@ -1,10 +1,10 @@
 from PyQt6.QtWidgets import (QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLabel,
-                             QSlider, QLineEdit, QSpinBox, QComboBox, QPushButton)
+                             QSlider, QLineEdit, QSpinBox, QComboBox, QCheckBox)
 from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtCore import Qt, QTimer
 from core.blc_interpreter import interpret_blc
 from core.blc_to_lambda import blc_to_lambda
-from core.image_generator import (generate_quadrant_image, select_quadrant, flip_image,
+from core.image_generator import (generate_full_image, select_quadrant, flip_image,
                                   rotate_image, combine_images)
 from utils.binary_utils import binary_to_decimal, decimal_to_binary
 
@@ -15,7 +15,7 @@ class LambdaControl(QWidget):
         self.decimal_value = initial_value
         self.z_value = initial_z
         self.quadrant = 0
-        self.flip_axis = None
+        self.flip = False
         self.rotation = 0
         self.init_ui()
 
@@ -61,16 +61,19 @@ class LambdaControl(QWidget):
 
         # Flip and rotation controls
         transform_layout = QHBoxLayout()
-        self.flip_combo = QComboBox()
-        self.flip_combo.addItems(["No Flip", "Flip X", "Flip Y"])
-        self.flip_combo.currentIndexChanged.connect(self.on_flip_change)
-        transform_layout.addWidget(self.flip_combo)
+        self.flip_check = QCheckBox("Flip")
+        self.flip_check.stateChanged.connect(self.on_flip_change)
+        transform_layout.addWidget(self.flip_check)
 
         self.rotation_combo = QComboBox()
         self.rotation_combo.addItems(["0°", "90°", "270°"])
         self.rotation_combo.currentIndexChanged.connect(self.on_rotation_change)
         transform_layout.addWidget(self.rotation_combo)
         layout.addLayout(transform_layout)
+
+        # Image display
+        self.image_label = QLabel()
+        layout.addWidget(self.image_label)
 
     def on_value_change(self, value):
         self.decimal_value = value
@@ -105,13 +108,18 @@ class LambdaControl(QWidget):
         self.quadrant = index
         self.parent.update_visualization()
 
-    def on_flip_change(self, index):
-        self.flip_axis = index - 1 if index > 0 else None
+    def on_flip_change(self, state):
+        self.flip = state == Qt.CheckState.Checked
         self.parent.update_visualization()
 
     def on_rotation_change(self, index):
         self.rotation = index * 90
         self.parent.update_visualization()
+
+    def update_image(self, image):
+        qimage = QImage(image.data, image.shape[1], image.shape[0], QImage.Format.Format_RGB888)
+        pixmap = QPixmap.fromImage(qimage)
+        self.image_label.setPixmap(pixmap.scaled(256, 256, Qt.AspectRatioMode.KeepAspectRatio))
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -122,6 +130,7 @@ class MainWindow(QMainWindow):
         self.binary_digits = 11
         self.lambda_controls = []
         self.combination_ops = ['xor', 'xor', 'or']
+        self.update_combined = False
 
         self.init_ui()
         self.update_timer = QTimer(self)
@@ -131,10 +140,7 @@ class MainWindow(QMainWindow):
     def init_ui(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        main_layout = QHBoxLayout(central_widget)
-
-        controls_layout = QVBoxLayout()
-        main_layout.addLayout(controls_layout)
+        main_layout = QVBoxLayout(central_widget)
 
         # Global controls
         global_controls = QHBoxLayout()
@@ -144,16 +150,22 @@ class MainWindow(QMainWindow):
         self.digits_spinbox.setValue(self.binary_digits)
         self.digits_spinbox.valueChanged.connect(self.on_digits_change)
         global_controls.addWidget(self.digits_spinbox)
-        controls_layout.addLayout(global_controls)
+        main_layout.addLayout(global_controls)
 
         # Lambda controls
+        lambda_layout = QHBoxLayout()
         for i, initial_value in enumerate([1434, 307, 1579, 742]):
             control = LambdaControl(self, initial_value, 128)
-            controls_layout.addWidget(QLabel(f"Lambda {i+1}"))
-            controls_layout.addWidget(control)
+            lambda_layout.addWidget(control)
             self.lambda_controls.append(control)
+        main_layout.addLayout(lambda_layout)
 
-        # Combination operation controls
+        # Combination controls
+        combination_layout = QVBoxLayout()
+        self.update_combined_check = QCheckBox("Update combined images")
+        self.update_combined_check.stateChanged.connect(self.on_update_combined_change)
+        combination_layout.addWidget(self.update_combined_check)
+
         for i, op in enumerate(self.combination_ops):
             op_layout = QHBoxLayout()
             op_layout.addWidget(QLabel(f"Operation {i+1}:"))
@@ -162,23 +174,32 @@ class MainWindow(QMainWindow):
             op_combo.setCurrentText(op)
             op_combo.currentTextChanged.connect(lambda text, index=i: self.on_op_change(index, text))
             op_layout.addWidget(op_combo)
-            controls_layout.addLayout(op_layout)
+            combination_layout.addLayout(op_layout)
+        main_layout.addLayout(combination_layout)
 
-        # Visualization area
-        vis_layout = QVBoxLayout()
+        # Combined visualization area
+        combined_layout = QHBoxLayout()
         self.intermediate_labels = [QLabel(), QLabel()]
         self.final_label = QLabel()
         for label in self.intermediate_labels + [self.final_label]:
-            vis_layout.addWidget(label)
-        main_layout.addLayout(vis_layout)
+            combined_layout.addWidget(label)
+        main_layout.addLayout(combined_layout)
 
     def update_visualization(self):
+        for control in self.lambda_controls:
+            image = generate_full_image(decimal_to_binary(control.decimal_value, self.binary_digits), control.z_value)
+            control.update_image(image)
+
+        if self.update_combined:
+            self.update_combined_images()
+
+    def update_combined_images(self):
         images = []
         for control in self.lambda_controls:
-            image = generate_quadrant_image(decimal_to_binary(control.decimal_value, self.binary_digits), control.z_value)
+            image = generate_full_image(decimal_to_binary(control.decimal_value, self.binary_digits), control.z_value)
             image = select_quadrant(image, control.quadrant)
-            if control.flip_axis is not None:
-                image = flip_image(image, control.flip_axis)
+            if control.flip:
+                image = flip_image(image)
             image = rotate_image(image, control.rotation)
             images.append(image)
 
@@ -190,9 +211,9 @@ class MainWindow(QMainWindow):
             qimage = QImage(img.data, img.shape[1], img.shape[0], QImage.Format.Format_RGB888)
             pixmap = QPixmap.fromImage(qimage)
             if i < 2:
-                self.intermediate_labels[i].setPixmap(pixmap.scaled(256, 256, Qt.AspectRatioMode.KeepAspectRatio))
+                self.intermediate_labels[i].setPixmap(pixmap.scaled(128, 128, Qt.AspectRatioMode.KeepAspectRatio))
             else:
-                self.final_label.setPixmap(pixmap.scaled(512, 512, Qt.AspectRatioMode.KeepAspectRatio))
+                self.final_label.setPixmap(pixmap.scaled(128, 128, Qt.AspectRatioMode.KeepAspectRatio))
 
     def on_digits_change(self, value):
         self.binary_digits = value
@@ -205,4 +226,10 @@ class MainWindow(QMainWindow):
 
     def on_op_change(self, index, operation):
         self.combination_ops[index] = operation
-        self.update_visualization()
+        if self.update_combined:
+            self.update_combined_images()
+
+    def on_update_combined_change(self, state):
+        self.update_combined = state == Qt.CheckState.Checked
+        if self.update_combined:
+            self.update_combined_images()
