@@ -140,9 +140,6 @@ class MainWindow(QMainWindow):
         self.combined_images_dirty = True
 
         self.init_ui()
-        #self.update_timer = QTimer(self)
-        #self.update_timer.timeout.connect(self.update_visualization)
-        #self.update_timer.start(250)  # Update every 100ms
 
         # Generate initial images
         self.update_all_images()
