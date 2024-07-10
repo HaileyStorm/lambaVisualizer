@@ -54,7 +54,7 @@ def select_quadrant(full_image, quadrant):
 
 
 def flip_image(image):
-    return np.flip(image, axis=1)  # Flip across y-axis
+    return np.flip(image, axis=0)  # Flip across x-axis
 
 
 def rotate_image(image, rotation):
