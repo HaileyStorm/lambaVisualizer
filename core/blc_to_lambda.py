@@ -1,12 +1,18 @@
 def blc_to_lambda(code):
-    tokens = [code[i:i+2] for i in range(0, len(code), 2)]
+    tokens = [code[i:i+3] for i in range(0, len(code), 3)]
     expr = 'λx.λy.λz.'
     for token in tokens:
-        if token == '0': expr += 'x'
-        elif token == '1': expr += 'y'
-        elif token == '00': expr += 'z'
-        elif token == '01': expr += '(λw.w+w)'
-        elif token == '10': expr += '(λw.w)'
-        elif token == '11': expr += '(x*y)'
-        else: expr += '(x^y^z)'
+        if token == '000': expr += '(λw.w+x)'
+        elif token == '001': expr += '(λw.w+y)'
+        elif token == '010': expr += '(λw.w+z)'
+        elif token == '011': expr += '(λw.w*2)'
+        elif token == '100': expr += '(λw.w/2)'
+        elif token == '101': expr += '(λw.w*x)'
+        elif token == '110': expr += '(λw.w*y)'
+        elif token == '111': expr += '(λw.w*z)'
+        elif token == '00': expr += '(λw.w^x)'
+        elif token == '01': expr += '(λw.w^y)'
+        elif token == '10': expr += '(λw.w^z)'
+        elif token == '11': expr += '(λw.¬w)'
+        else: expr += '(λw.w+1)'
     return expr

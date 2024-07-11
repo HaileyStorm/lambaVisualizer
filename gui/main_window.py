@@ -124,7 +124,7 @@ class LambdaControl(QWidget):
         self.parent.update_visualization()
 
     def on_flip_change(self, state):
-        self.flip = state == Qt.CheckState.Checked
+        self.flip = state > 0
         self.parent.combined_images_dirty = True
         self.parent.update_visualization()
 
@@ -166,7 +166,7 @@ class MainWindow(QMainWindow):
         global_controls = QHBoxLayout()
         global_controls.addWidget(QLabel("Binary digits:"))
         self.digits_spinbox = QSpinBox()
-        self.digits_spinbox.setRange(1, 53)
+        self.digits_spinbox.setRange(3, 31)
         self.digits_spinbox.setValue(self.binary_digits)
         self.digits_spinbox.valueChanged.connect(self.on_digits_change)
         global_controls.addWidget(self.digits_spinbox)
