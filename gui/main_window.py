@@ -22,6 +22,10 @@ class LambdaControl(QWidget):
     def init_ui(self):
         layout = QVBoxLayout(self)
 
+        self.lambda_label = QLabel()
+        self.lambda_label.setWordWrap(True)
+        layout.addWidget(self.lambda_label)
+
         # Value slider and inputs
         value_layout = QHBoxLayout()
         self.value_slider = QSlider(Qt.Orientation.Horizontal)
@@ -75,10 +79,13 @@ class LambdaControl(QWidget):
         self.image_label = QLabel()
         layout.addWidget(self.image_label)
 
+        self.update_lambda_string()
+
     def on_value_change(self, value):
         self.decimal_value = value
         self.binary_input.setText(decimal_to_binary(value, self.parent.binary_digits))
         self.decimal_input.setText(str(value))
+        self.update_lambda_string()
         self.parent.update_visualization(self.index)
 
     def on_binary_input_change(self, text):
@@ -87,18 +94,25 @@ class LambdaControl(QWidget):
         self.decimal_value = binary_to_decimal(binary)
         self.value_slider.setValue(self.decimal_value)
         self.decimal_input.setText(str(self.decimal_value))
+        self.update_lambda_string()
         self.parent.update_visualization(self.index)
 
     def on_decimal_input_change(self, text):
         try:
             value = int(text)
-            max_value = 2**self.parent.binary_digits - 1
+            max_value = 2 ** self.parent.binary_digits - 1
             self.decimal_value = max(0, min(value, max_value))
             self.value_slider.setValue(self.decimal_value)
             self.binary_input.setText(decimal_to_binary(self.decimal_value, self.parent.binary_digits))
+            self.update_lambda_string()
             self.parent.update_visualization(self.index)
         except ValueError:
             pass
+
+    def update_lambda_string(self):
+        binary = decimal_to_binary(self.decimal_value, self.parent.binary_digits)
+        lambda_string = blc_to_lambda(binary)
+        self.lambda_label.setText(f"λ: {lambda_string}")
 
     def on_z_change(self, value):
         self.z_value = value
@@ -128,7 +142,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Advanced Binary Lambda Calculus Visualizer")
-        self.setGeometry(100, 100, 1200, 800)
+        self.setGeometry(100, 100, 1600, 800)
 
         self.binary_digits = 11
         self.lambda_controls = []
@@ -250,6 +264,7 @@ class MainWindow(QMainWindow):
             if control.decimal_value >= 2 ** self.binary_digits:
                 control.decimal_value = 2 ** self.binary_digits - 1
                 control.value_slider.setValue(control.decimal_value)
+            control.update_lambda_string()
         self.update_all_images()
 
     def on_op_change(self, index, operation):
