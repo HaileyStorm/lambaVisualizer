@@ -2,7 +2,6 @@ from PyQt6.QtWidgets import (QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLa
                              QSlider, QLineEdit, QSpinBox, QComboBox, QCheckBox)
 from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtCore import Qt, QTimer
-from core.blc_interpreter import interpret_blc
 from core.blc_to_lambda import blc_to_lambda
 from core.image_generator import (generate_full_image, select_quadrant, flip_image,
                                   rotate_image, combine_images)
