@@ -166,7 +166,7 @@ class MainWindow(QMainWindow):
         global_controls = QHBoxLayout()
         global_controls.addWidget(QLabel("Binary digits:"))
         self.digits_spinbox = QSpinBox()
-        self.digits_spinbox.setRange(3, 31)
+        self.digits_spinbox.setRange(8, 31)
         self.digits_spinbox.setValue(self.binary_digits)
         self.digits_spinbox.valueChanged.connect(self.on_digits_change)
         global_controls.addWidget(self.digits_spinbox)
@@ -174,7 +174,7 @@ class MainWindow(QMainWindow):
 
         # Lambda controls
         lambda_layout = QHBoxLayout()
-        for i, initial_value in enumerate([1434, 307, 1579, 742]):
+        for i, initial_value in enumerate([1434, 307, 1245, 742]):
             control = LambdaControl(self, initial_value, 128, i)
             lambda_layout.addWidget(control)
             self.lambda_controls.append(control)
