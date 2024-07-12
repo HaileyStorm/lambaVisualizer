@@ -244,6 +244,8 @@ class MainWindow(QMainWindow):
         self.update_image_label(self.final_label, final)
 
     def update_image_label(self, label, image):
+        #print(image.shape)
+        #print(type(image.data))
         qimage = QImage(image.data, image.shape[1], image.shape[0], QImage.Format.Format_RGB888)
         pixmap = QPixmap.fromImage(qimage)
         label.setPixmap(pixmap.scaled(128, 128, Qt.AspectRatioMode.KeepAspectRatio))
